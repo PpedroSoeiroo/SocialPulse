@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "next-themes";
 import { 
-  BarChart, Home, Activity, Lightbulb, User, Settings, Menu, X, Moon, Sun 
+  BarChart, Home, Activity, Lightbulb, User, Settings, Menu, X, Moon, Sun, 
+  MessageSquarePlus, Sparkles
 } from "lucide-react";
 import { SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export function Sidebar({ children }: SidebarProps) {
     { path: "/", label: "Dashboard", icon: <Home className="h-5 w-5" /> },
     { path: "/platforms", label: "Platforms", icon: <Activity className="h-5 w-5" /> },
     { path: "/insights", label: "AI Insights", icon: <Lightbulb className="h-5 w-5" /> },
+    { path: "/content-creator", label: "Content Creator", icon: <Sparkles className="h-5 w-5" /> },
     { path: "/profile", label: "Profile", icon: <User className="h-5 w-5" /> },
     { path: "/settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
   ];

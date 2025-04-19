@@ -13,6 +13,7 @@ import PlatformsPage from "@/pages/platforms-page";
 import InsightsPage from "@/pages/insights-page";
 import ProfilePage from "@/pages/profile-page";
 import SettingsPage from "@/pages/settings-page";
+import ContentCreatorPage from "@/pages/content-creator-page";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/platforms" component={PlatformsPage} />
       <ProtectedRoute path="/insights" component={InsightsPage} />
+      <ProtectedRoute path="/content-creator" component={ContentCreatorPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
       <Route path="/auth" component={AuthPage} />
