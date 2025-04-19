@@ -25,6 +25,29 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  
+  // Fetch initial notifications
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch('/api/notifications');
+        if (!res.ok) throw new Error('Failed to fetch notifications');
+        
+        const data = await res.json();
+        setNotifications(data);
+        
+        // Calculate unread count
+        const unreadNotifications = data.filter((n: Notification) => !n.read);
+        setUnreadCount(unreadNotifications.length);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+    
+    fetchNotifications();
+  }, [user]);
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -87,28 +110,64 @@ export function useNotifications() {
     };
   }, [user, toast]);
   
-  // Mark notifications as read
-  const markAsRead = (id?: number) => {
-    setNotifications(prev => 
-      prev.map(notification => {
-        if (id === undefined || notification.id === id) {
-          return { ...notification, read: true };
-        }
-        return notification;
-      })
-    );
-    
-    // Update unread count
-    setUnreadCount(
-      id === undefined 
-        ? 0 
-        : prev => prev - (notifications.find(n => n.id === id && !n.read) ? 1 : 0)
-    );
+  // Mark notification as read
+  const markAsRead = async (id?: number) => {
+    if (id !== undefined) {
+      try {
+        // Call the API to mark the notification as read
+        const res = await fetch(`/api/notifications/${id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!res.ok) throw new Error('Failed to mark notification as read');
+        
+        // Update local state
+        setNotifications(prev => 
+          prev.map(notification => {
+            if (notification.id === id && !notification.read) {
+              return { ...notification, read: true };
+            }
+            return notification;
+          })
+        );
+        
+        // Update unread count
+        setUnreadCount(prev => prev - (notifications.find(n => n.id === id && !n.read) ? 1 : 0));
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+      }
+    } else {
+      // Mark all as read
+      markAllAsRead();
+    }
   };
   
   // Mark all notifications as read
-  const markAllAsRead = () => {
-    markAsRead();
+  const markAllAsRead = async () => {
+    try {
+      // Call the API to mark all notifications as read
+      const res = await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) throw new Error('Failed to mark all notifications as read');
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(notification => ({ ...notification, read: true }))
+      );
+      
+      // Reset unread count
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
   
   // Clear all notifications

@@ -251,27 +251,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   
   // Endpoint to get notifications for a user
-  app.get("/api/notifications", isAuthenticated, (req, res) => {
-    // In a real implementation, we would fetch from database
-    // For now, return empty array as we're using WebSockets for real-time
-    res.json([]);
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
   });
   
   // Endpoint to manually send a test notification
-  app.post("/api/notifications/test", isAuthenticated, (req, res) => {
-    const userId = req.user!.id;
-    const { title, message, type } = req.body;
-    
-    const notification = {
-      id: Date.now(),
-      title: title || "Test Notification",
-      message: message || "This is a test notification from the server.",
-      type: type || "info",
-      timestamp: new Date().toISOString()
-    };
-    
-    sendNotification(userId, notification);
-    res.status(201).json(notification);
+  app.post("/api/notifications/test", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { title, message, type } = req.body;
+      
+      // Create notification in database
+      const notification = await storage.createNotification({
+        userId,
+        title: title || "Test Notification",
+        message: message || "This is a test notification from the server.",
+        type: type || "info"
+      });
+      
+      // Send real-time notification with formatted values
+      sendNotification(userId, {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type as 'info' | 'success' | 'warning' | 'error',
+        timestamp: notification.timestamp.toISOString()
+      });
+      
+      res.status(201).json(notification);
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      res.status(500).json({ message: "Failed to create notification" });
+    }
+  });
+  
+  // Endpoint to mark a notification as read
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      const notification = await storage.markNotificationAsRead(notificationId);
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+  
+  // Endpoint to mark all notifications as read
+  app.post("/api/notifications/mark-all-read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      await storage.markAllNotificationsAsRead(userId);
+      res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
   });
   
   // Make the sendNotification function available to other modules
