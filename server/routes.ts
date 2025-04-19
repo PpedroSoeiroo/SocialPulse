@@ -3,7 +3,13 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { getTrendingContent, getContentRecommendations, generateContent } from "./openai";
+import { 
+  getTrendingContent, 
+  getContentRecommendations, 
+  generateContent,
+  analyzeContentPerformance,
+  generateCaptionVariations
+} from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -318,6 +324,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Make the sendNotification function available to other modules
   (app as any).sendNotification = sendNotification;
+  
+  // ----------------- AI Content Suggestion Endpoints -----------------
+  
+  // Get AI-generated trending content
+  app.get("/api/ai/trending-content", isAuthenticated, async (req, res) => {
+    try {
+      const trendingData = await getTrendingContent();
+      res.json(trendingData);
+    } catch (error) {
+      console.error("Error fetching trending content:", error);
+      res.status(500).json({ message: "Failed to fetch trending content" });
+    }
+  });
+  
+  // Get content recommendations for a specific platform
+  app.get("/api/ai/content-recommendations/:platform", isAuthenticated, async (req, res) => {
+    try {
+      const { platform } = req.params;
+      const recommendations = await getContentRecommendations(platform);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching content recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch content recommendations" });
+    }
+  });
+  
+  // Generate content using AI
+  app.post("/api/ai/generate-content", isAuthenticated, async (req, res) => {
+    try {
+      const { contentType, description, platform } = req.body;
+      const content = await generateContent(contentType, description, platform);
+      res.json({ content });
+    } catch (error) {
+      console.error("Error generating content:", error);
+      res.status(500).json({ message: "Failed to generate content" });
+    }
+  });
+  
+  // Analyze content performance
+  app.post("/api/ai/analyze-content", isAuthenticated, async (req, res) => {
+    try {
+      const { contentSample, platform } = req.body;
+      const analysis = await analyzeContentPerformance(contentSample, platform);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing content:", error);
+      res.status(500).json({ message: "Failed to analyze content" });
+    }
+  });
+  
+  // Generate caption variations
+  app.post("/api/ai/caption-variations", isAuthenticated, async (req, res) => {
+    try {
+      const { caption, platform, count } = req.body;
+      const variations = await generateCaptionVariations(caption, platform, count);
+      res.json(variations);
+    } catch (error) {
+      console.error("Error generating caption variations:", error);
+      res.status(500).json({ message: "Failed to generate caption variations" });
+    }
+  });
+  
+  // Get personalized content suggestions
+  app.post("/api/ai/personalized-suggestions", isAuthenticated, async (req, res) => {
+    try {
+      const { platform, contentHistory } = req.body;
+      // This would typically use the user's content history and performance metrics
+      // For now, we'll just return standard content recommendations
+      const suggestions = await getContentRecommendations(platform);
+      res.json({
+        ...suggestions,
+        personalized: true
+      });
+    } catch (error) {
+      console.error("Error getting personalized suggestions:", error);
+      res.status(500).json({ message: "Failed to get personalized suggestions" });
+    }
+  });
 
   return httpServer;
 }
