@@ -22,8 +22,9 @@ export async function getTrendingContent() {
       response_format: { type: "json_object" }
     });
 
+    const content = response.choices[0].message.content || "{}";
     // Parse and return the response
-    return JSON.parse(response.choices[0].message.content);
+    return JSON.parse(content);
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error("Failed to fetch trending content from OpenAI");
@@ -47,7 +48,8 @@ export async function getContentRecommendations(platform: string) {
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "{}";
+    return JSON.parse(content);
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error(`Failed to get content recommendations for ${platform}`);
@@ -101,7 +103,7 @@ export async function generateContent(contentType: string, description: string, 
       response_format: useJsonFormat ? { type: "json_object" } : undefined
     });
 
-    return response.choices[0].message.content;
+    return response.choices[0].message.content || "";
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error(`Failed to generate ${contentType}`);
@@ -125,7 +127,8 @@ export async function analyzeContentPerformance(contentSample: string, platform:
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "{}";
+    return JSON.parse(content);
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error(`Failed to analyze content performance`);
@@ -149,7 +152,8 @@ export async function generateCaptionVariations(caption: string, platform: strin
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "{}";
+    return JSON.parse(content);
   } catch (error) {
     console.error("OpenAI API error:", error);
     throw new Error(`Failed to generate caption variations`);
