@@ -200,6 +200,7 @@ export function Sidebar({ children }: SidebarProps) {
           </Button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <Button 
               variant="ghost" 
               size="icon"

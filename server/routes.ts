@@ -160,25 +160,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Map to store client connections by user ID
   const clients = new Map<number, WebSocket[]>();
 
+  // Type for WebSocket messages
+  type WebSocketAuthMessage = {
+    type: 'auth';
+    userId: number;
+  };
+  
+  // Helper function to ensure value is a number for TypeScript
+  function ensureNumber(value: number | null): asserts value is number {
+    if (value === null) {
+      throw new Error("Expected a number but got null");
+    }
+  }
+
   wss.on('connection', (ws: WebSocket) => {
-    let userId: number | null = null;
+    let wsUserId: number | null = null;
     
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message);
         
         // Handle client authentication
-        if (data.type === 'auth' && data.userId) {
-          userId = data.userId;
+        if (data.type === 'auth' && typeof data.userId === 'number') {
+          const userId = data.userId;  // Create a constant with the correct type
+          wsUserId = userId;
           
           // Store client connection
-          if (!clients.has(userId)) {
-            clients.set(userId, []);
-          }
-          const userConnections = clients.get(userId);
-          if (userConnections) {
-            userConnections.push(ws);
-          }
+          const existingConnections = clients.get(userId) || [];
+          existingConnections.push(ws);
+          clients.set(userId, existingConnections);
           
           // Send a welcome notification
           ws.send(JSON.stringify({
@@ -198,17 +208,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     ws.on('close', () => {
-      if (userId && clients.has(userId)) {
-        // Remove this client from the connections list
-        const userClients = clients.get(userId)!;
-        const index = userClients.indexOf(ws);
-        if (index !== -1) {
-          userClients.splice(index, 1);
-        }
+      if (wsUserId !== null) {
+        const userId = wsUserId; // Create a local constant
         
-        // Clean up if no more connections for this user
-        if (userClients.length === 0) {
-          clients.delete(userId);
+        // Remove this client from the connections list
+        const userClients = clients.get(userId);
+        if (userClients) {
+          const index = userClients.indexOf(ws);
+          if (index !== -1) {
+            userClients.splice(index, 1);
+          }
+          
+          // Clean up if no more connections for this user
+          if (userClients.length === 0) {
+            clients.delete(userId);
+          }
         }
       }
     });
