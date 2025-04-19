@@ -87,3 +87,22 @@ export type PopularSong = typeof popularSongs.$inferSelect;
 
 export type InsertBestPostTime = z.infer<typeof insertBestPostTimeSchema>;
 export type BestPostTime = typeof bestPostTimes.$inferSelect;
+
+// Notification schema
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // 'info', 'success', 'warning', 'error'
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  read: boolean("read").default(false).notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  timestamp: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;

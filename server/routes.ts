@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { getTrendingContent, getContentRecommendations, generateContent } from "./openai";
@@ -152,6 +153,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server for real-time notifications
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Map to store client connections by user ID
+  const clients = new Map<number, WebSocket[]>();
+
+  wss.on('connection', (ws: WebSocket) => {
+    let userId: number | null = null;
+    
+    ws.on('message', (message: string) => {
+      try {
+        const data = JSON.parse(message);
+        
+        // Handle client authentication
+        if (data.type === 'auth') {
+          userId = data.userId;
+          
+          // Store client connection
+          if (!clients.has(userId)) {
+            clients.set(userId, []);
+          }
+          clients.get(userId)!.push(ws);
+          
+          // Send a welcome notification
+          ws.send(JSON.stringify({
+            type: 'notification',
+            notification: {
+              id: Date.now(),
+              title: 'Connected',
+              message: 'You are now receiving real-time notifications',
+              type: 'info',
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      if (userId && clients.has(userId)) {
+        // Remove this client from the connections list
+        const userClients = clients.get(userId)!;
+        const index = userClients.indexOf(ws);
+        if (index !== -1) {
+          userClients.splice(index, 1);
+        }
+        
+        // Clean up if no more connections for this user
+        if (userClients.length === 0) {
+          clients.delete(userId);
+        }
+      }
+    });
+  });
+  
+  // Helper function to send notifications to a specific user
+  const sendNotification = (userId: number, notification: {
+    id: number;
+    title: string;
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    timestamp: string;
+  }) => {
+    if (clients.has(userId)) {
+      const userClients = clients.get(userId)!;
+      
+      userClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'notification',
+            notification
+          }));
+        }
+      });
+    }
+  };
+  
+  // Endpoint to get notifications for a user
+  app.get("/api/notifications", isAuthenticated, (req, res) => {
+    // In a real implementation, we would fetch from database
+    // For now, return empty array as we're using WebSockets for real-time
+    res.json([]);
+  });
+  
+  // Endpoint to manually send a test notification
+  app.post("/api/notifications/test", isAuthenticated, (req, res) => {
+    const userId = req.user!.id;
+    const { title, message, type } = req.body;
+    
+    const notification = {
+      id: Date.now(),
+      title: title || "Test Notification",
+      message: message || "This is a test notification from the server.",
+      type: type || "info",
+      timestamp: new Date().toISOString()
+    };
+    
+    sendNotification(userId, notification);
+    res.status(201).json(notification);
+  });
+  
+  // Make the sendNotification function available to other modules
+  (app as any).sendNotification = sendNotification;
 
   return httpServer;
 }

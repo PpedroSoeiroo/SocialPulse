@@ -36,6 +36,14 @@ export interface IStorage {
   getBestPostTimes(): Promise<BestPostTime[]>;
   createBestPostTime(time: InsertBestPostTime): Promise<BestPostTime>;
   
+  // Notifications
+  getNotifications(userId: number): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification>;
+  markAllNotificationsAsRead(userId: number): Promise<void>;
+  deleteNotification(id: number): Promise<void>;
+  deleteAllNotifications(userId: number): Promise<void>;
+  
   // Session store
   sessionStore: session.SessionStore;
 }
@@ -46,6 +54,7 @@ export class MemStorage implements IStorage {
   private trendingHashtagsMap: Map<number, TrendingHashtag>;
   private popularSongsMap: Map<number, PopularSong>;
   private bestPostTimesMap: Map<number, BestPostTime>;
+  private notificationsMap: Map<number, Notification>;
   
   sessionStore: session.SessionStore;
   
@@ -54,6 +63,7 @@ export class MemStorage implements IStorage {
   private trendingHashtagIdCounter: number;
   private popularSongIdCounter: number;
   private bestPostTimeIdCounter: number;
+  private notificationIdCounter: number;
 
   constructor() {
     this.usersMap = new Map();
@@ -61,12 +71,14 @@ export class MemStorage implements IStorage {
     this.trendingHashtagsMap = new Map();
     this.popularSongsMap = new Map();
     this.bestPostTimesMap = new Map();
+    this.notificationsMap = new Map();
     
     this.userIdCounter = 1;
     this.socialAccountIdCounter = 1;
     this.trendingHashtagIdCounter = 1;
     this.popularSongIdCounter = 1;
     this.bestPostTimeIdCounter = 1;
+    this.notificationIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
