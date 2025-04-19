@@ -3,7 +3,8 @@ import {
   socialAccounts, type SocialAccount, type InsertSocialAccount,
   trendingHashtags, type TrendingHashtag, type InsertTrendingHashtag,
   popularSongs, type PopularSong, type InsertPopularSong,
-  bestPostTimes, type BestPostTime, type InsertBestPostTime
+  bestPostTimes, type BestPostTime, type InsertBestPostTime,
+  notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -45,7 +46,7 @@ export interface IStorage {
   deleteAllNotifications(userId: number): Promise<void>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -56,7 +57,7 @@ export class MemStorage implements IStorage {
   private bestPostTimesMap: Map<number, BestPostTime>;
   private notificationsMap: Map<number, Notification>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
   
   private userIdCounter: number;
   private socialAccountIdCounter: number;
@@ -128,9 +129,18 @@ export class MemStorage implements IStorage {
   async createSocialAccount(account: InsertSocialAccount): Promise<SocialAccount> {
     const id = this.socialAccountIdCounter++;
     const newAccount: SocialAccount = { 
-      ...account, 
-      id,
-      tokenExpiry: account.tokenExpiry || new Date(Date.now() + 3600000) // Default 1 hour from now
+      userId: account.userId,
+      platform: account.platform,
+      accountId: account.accountId,
+      username: account.username || null,
+      connected: account.connected || false,
+      accessToken: account.accessToken || null,
+      refreshToken: account.refreshToken || null,
+      tokenExpiry: account.tokenExpiry || new Date(Date.now() + 3600000),
+      followers: account.followers || null,
+      engagement: account.engagement || null,
+      posts: account.posts || null,
+      id
     };
     this.socialAccountsMap.set(id, newAccount);
     return newAccount;
@@ -197,6 +207,58 @@ export class MemStorage implements IStorage {
     };
     this.bestPostTimesMap.set(id, newTime);
     return newTime;
+  }
+  
+  // Notifications
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notificationsMap.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+  
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = this.notificationIdCounter++;
+    const newNotification: Notification = {
+      ...notification,
+      id,
+      timestamp: new Date(),
+      read: false
+    };
+    this.notificationsMap.set(id, newNotification);
+    return newNotification;
+  }
+  
+  async markNotificationAsRead(id: number): Promise<Notification> {
+    const notification = this.notificationsMap.get(id);
+    if (!notification) {
+      throw new Error("Notification not found");
+    }
+    
+    const updatedNotification = { ...notification, read: true };
+    this.notificationsMap.set(id, updatedNotification);
+    return updatedNotification;
+  }
+  
+  async markAllNotificationsAsRead(userId: number): Promise<void> {
+    const userNotifications = Array.from(this.notificationsMap.entries())
+      .filter(([_, notification]) => notification.userId === userId);
+    
+    for (const [id, notification] of userNotifications) {
+      this.notificationsMap.set(id, { ...notification, read: true });
+    }
+  }
+  
+  async deleteNotification(id: number): Promise<void> {
+    this.notificationsMap.delete(id);
+  }
+  
+  async deleteAllNotifications(userId: number): Promise<void> {
+    const userNotifications = Array.from(this.notificationsMap.entries())
+      .filter(([_, notification]) => notification.userId === userId);
+    
+    for (const [id] of userNotifications) {
+      this.notificationsMap.delete(id);
+    }
   }
   
   // Seed initial trending data

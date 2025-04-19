@@ -168,14 +168,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const data = JSON.parse(message);
         
         // Handle client authentication
-        if (data.type === 'auth') {
+        if (data.type === 'auth' && data.userId) {
           userId = data.userId;
           
           // Store client connection
           if (!clients.has(userId)) {
             clients.set(userId, []);
           }
-          clients.get(userId)!.push(ws);
+          const userConnections = clients.get(userId);
+          if (userConnections) {
+            userConnections.push(ws);
+          }
           
           // Send a welcome notification
           ws.send(JSON.stringify({
